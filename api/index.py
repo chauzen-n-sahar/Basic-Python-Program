@@ -6,26 +6,51 @@ Author: Parash
 """
 
 import os
+import sys
+import traceback
 from flask import Flask, render_template, request, redirect, url_for, flash, Response
-import psycopg2
-import psycopg2.extras
-import csv
-import io
-from datetime import datetime
 
-# Use absolute path for templates (relative paths break in Vercel serverless)
+# Use absolute path for templates
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 
-app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "templates"))
+# Fallback: if templates not found at parent level, try current working directory
+if not os.path.isdir(TEMPLATE_DIR):
+    TEMPLATE_DIR = os.path.join(os.getcwd(), "templates")
+
+app = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.secret_key = os.environ.get("SECRET_KEY", "nayepankh_volunteer_system_2026")
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+# Try importing psycopg2, fall back to pg8000 if not available
+try:
+    import psycopg2
+    import psycopg2.extras
+    DB_DRIVER = "psycopg2"
+except ImportError:
+    psycopg2 = None
+    DB_DRIVER = None
+
+import csv
+import io
+from datetime import datetime
+
 
 def get_db():
     """Get a PostgreSQL database connection."""
-    conn = psycopg2.connect(DATABASE_URL)
-    return conn
+    if DB_DRIVER == "psycopg2":
+        conn = psycopg2.connect(DATABASE_URL)
+        return conn
+    else:
+        raise Exception("No PostgreSQL driver available. psycopg2-binary not installed.")
+
+
+def get_dict_cursor(conn):
+    """Get a cursor that returns dict-like rows."""
+    if DB_DRIVER == "psycopg2":
+        return conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    return conn.cursor()
 
 
 def init_db():
@@ -56,14 +81,53 @@ _db_initialized = False
 
 @app.before_request
 def ensure_db():
-    """Initialize DB on first request (avoids cold-start crashes)."""
+    """Initialize DB on first request."""
     global _db_initialized
     if not _db_initialized and DATABASE_URL:
         try:
             init_db()
             _db_initialized = True
         except Exception as e:
-            print(f"DB init error: {e}")
+            print(f"DB init error: {e}", file=sys.stderr)
+
+
+# ──────────────────────────────────────────────
+# Debug route (remove after deployment works)
+# ──────────────────────────────────────────────
+
+@app.route("/debug")
+def debug_info():
+    """Show debug info to diagnose deployment issues."""
+    info = []
+    info.append(f"Python: {sys.version}")
+    info.append(f"CWD: {os.getcwd()}")
+    info.append(f"__file__: {os.path.abspath(__file__)}")
+    info.append(f"BASE_DIR: {BASE_DIR}")
+    info.append(f"TEMPLATE_DIR: {TEMPLATE_DIR}")
+    info.append(f"Template dir exists: {os.path.isdir(TEMPLATE_DIR)}")
+    info.append(f"DATABASE_URL set: {bool(DATABASE_URL)}")
+    info.append(f"DB_DRIVER: {DB_DRIVER}")
+
+    # List files in template dir
+    if os.path.isdir(TEMPLATE_DIR):
+        info.append(f"Templates: {os.listdir(TEMPLATE_DIR)}")
+    else:
+        # Try to find templates
+        for root, dirs, files in os.walk(os.getcwd()):
+            for f in files:
+                if f.endswith('.html'):
+                    info.append(f"Found HTML: {os.path.join(root, f)}")
+
+    # Test DB connection
+    if DATABASE_URL:
+        try:
+            conn = get_db()
+            conn.close()
+            info.append("DB Connection: SUCCESS")
+        except Exception as e:
+            info.append(f"DB Connection: FAILED - {e}")
+
+    return "<br>".join(info)
 
 
 # ──────────────────────────────────────────────
@@ -74,7 +138,7 @@ def ensure_db():
 def index():
     """Home page - show all volunteers with optional search/filter."""
     conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = get_dict_cursor(conn)
 
     # Get filter/search parameters
     search = request.args.get("search", "").strip()
@@ -166,6 +230,9 @@ def add_volunteer():
     except psycopg2.IntegrityError:
         conn.rollback()
         flash(f"A volunteer with email '{email}' already exists!", "error")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}", "error")
     finally:
         cur.close()
         conn.close()
@@ -190,7 +257,7 @@ def delete_volunteer(vol_id):
 def generate_report():
     """Generate and download a CSV report of all volunteers."""
     conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = get_dict_cursor(conn)
     cur.execute("SELECT * FROM volunteers ORDER BY id")
     volunteers = cur.fetchall()
     cur.close()
