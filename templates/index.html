@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NayePankh Foundation - Volunteer Management System</title>
+    <meta name="description" content="Volunteer Management System for NayePankh Foundation. Register, search, and manage volunteers across India.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --primary: #e8612d;
+            --primary-dark: #c74e1f;
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --surface-alt: #22263a;
+            --border: #2e3348;
+            --text: #e4e6ef;
+            --text-muted: #8b8fa7;
+            --success: #34d399;
+            --error: #f87171;
+            --radius: 10px;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ── Header ── */
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, #d4451a 100%);
+            padding: 28px 24px;
+            text-align: center;
+        }
+        header h1 { font-size: 1.6rem; font-weight: 700; color: #fff; }
+        header p { font-size: 0.85rem; color: rgba(255,255,255,0.85); margin-top: 4px; }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+        /* ── Flash messages ── */
+        .flash {
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            font-size: 0.88rem;
+            font-weight: 500;
+            animation: slideDown 0.3s ease;
+        }
+        .flash.success { background: rgba(52,211,153,0.15); color: var(--success); border: 1px solid rgba(52,211,153,0.3); }
+        .flash.error { background: rgba(248,113,113,0.15); color: var(--error); border: 1px solid rgba(248,113,113,0.3); }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Stats row ── */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px;
+            text-align: center;
+        }
+        .stat-card .num { font-size: 2rem; font-weight: 700; color: var(--primary); }
+        .stat-card .label { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+        /* ── Sections ── */
+        .section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 22px;
+            margin-bottom: 22px;
+        }
+        .section h2 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* ── Form ── */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.88rem;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .form-group select option { background: var(--surface); }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 22px;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            text-decoration: none;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-outline {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+        .btn-outline:hover { border-color: var(--text-muted); color: var(--text); }
+        .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+        .btn-danger { background: rgba(248,113,113,0.15); color: var(--error); }
+        .btn-danger:hover { background: rgba(248,113,113,0.25); }
+
+        .form-actions {
+            margin-top: 14px;
+            display: flex;
+            gap: 10px;
+        }
+
+        /* ── Search / Filter Bar ── */
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 16px;
+            align-items: flex-end;
+        }
+        .filter-bar .form-group { flex: 1; min-width: 160px; }
+        .filter-bar .btn { align-self: flex-end; }
+
+        /* ── Table ── */
+        .table-wrap { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        th {
+            text-align: left;
+            padding: 10px 12px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+        tr:hover td { background: rgba(232,97,45,0.04); }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+        .badge-dept { background: rgba(232,97,45,0.15); color: var(--primary); }
+        .badge-exp { background: rgba(52,211,153,0.12); color: var(--success); }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+        .empty-state p { font-size: 0.95rem; }
+
+        .report-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* ── Footer ── */
+        footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border);
+            margin-top: 20px;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 600px) {
+            .stats { grid-template-columns: 1fr; }
+            .form-grid { grid-template-columns: 1fr; }
+            .filter-bar { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🕊️ NayePankh Foundation</h1>
+    <p>Volunteer Management System</p>
+</header>
+
+<div class="container">
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <!-- Dashboard Stats -->
+    <div class="stats">
+        <div class="stat-card">
+            <div class="num">{{ total }}</div>
+            <div class="label">Total Volunteers</div>
+        </div>
+        <div class="stat-card">
+            <div class="num">{{ dept_count }}</div>
+            <div class="label">Departments</div>
+        </div>
+        <div class="stat-card">
+            <div class="num">{{ city_count }}</div>
+            <div class="label">Cities</div>
+        </div>
+    </div>
+
+    <!-- Add Volunteer Form -->
+    <div class="section">
+        <h2>➕ Register New Volunteer</h2>
+        <form method="POST" action="/add" id="add-form">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" name="name" placeholder="e.g. Rahul Sharma" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" placeholder="e.g. rahul@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" name="phone" placeholder="e.g. 9876543210" required>
+                </div>
+                <div class="form-group">
+                    <label for="city">City</label>
+                    <input type="text" id="city" name="city" placeholder="e.g. Delhi" required>
+                </div>
+                <div class="form-group">
+                    <label for="skills">Skills</label>
+                    <input type="text" id="skills" name="skills" placeholder="e.g. Python, Design" required>
+                </div>
+                <div class="form-group">
+                    <label for="department">Department</label>
+                    <select id="department" name="department" required>
+                        <option value="" disabled selected>Select department</option>
+                        <option value="Education">Education</option>
+                        <option value="Youth Empowerment">Youth Empowerment</option>
+                        <option value="Skill Development">Skill Development</option>
+                        <option value="Social Awareness">Social Awareness</option>
+                        <option value="Community Impact">Community Impact</option>
+                        <option value="Technical">Technical</option>
+                        <option value="Content & Media">Content & Media</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="experience">Experience Level</label>
+                    <select id="experience" name="experience" required>
+                        <option value="Beginner" selected>Beginner</option>
+                        <option value="Intermediate">Intermediate</option>
+                        <option value="Advanced">Advanced</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Add Volunteer</button>
+                <button type="reset" class="btn btn-outline">Clear</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Search & Filter + Volunteers Table -->
+    <div class="section">
+        <div class="report-bar">
+            <h2 style="border:none; margin:0; padding:0;">📋 Volunteer Records</h2>
+            <a href="/report" class="btn btn-outline btn-sm">⬇ Download CSV Report</a>
+        </div>
+
+        <!-- Search & Filter -->
+        <form method="GET" action="/" class="filter-bar" id="filter-form">
+            <div class="form-group">
+                <label for="search">Search</label>
+                <input type="text" id="search" name="search" placeholder="Name, email, or skill..." value="{{ search }}">
+            </div>
+            <div class="form-group">
+                <label for="filter-department">Department</label>
+                <select id="filter-department" name="department">
+                    <option value="">All Departments</option>
+                    {% for d in departments %}
+                    <option value="{{ d.department }}" {% if dept_filter == d.department %}selected{% endif %}>{{ d.department }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="filter-city">City</label>
+                <select id="filter-city" name="city">
+                    <option value="">All Cities</option>
+                    {% for c in cities %}
+                    <option value="{{ c.city }}" {% if city_filter == c.city %}selected{% endif %}>{{ c.city }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Search</button>
+            <a href="/" class="btn btn-outline btn-sm">Reset</a>
+        </form>
+
+        <!-- Table -->
+        <div class="table-wrap">
+            {% if volunteers %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>City</th>
+                        <th>Skills</th>
+                        <th>Department</th>
+                        <th>Experience</th>
+                        <th>Registered</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in volunteers %}
+                    <tr>
+                        <td>{{ v.id }}</td>
+                        <td><strong>{{ v.name }}</strong></td>
+                        <td>{{ v.email }}</td>
+                        <td>{{ v.phone }}</td>
+                        <td>{{ v.city }}</td>
+                        <td>{{ v.skills }}</td>
+                        <td><span class="badge badge-dept">{{ v.department }}</span></td>
+                        <td><span class="badge badge-exp">{{ v.experience }}</span></td>
+                        <td>{{ v.date_registered }}</td>
+                        <td>
+                            <a href="/delete/{{ v.id }}" class="btn btn-danger btn-sm"
+                               onclick="return confirm('Remove this volunteer?')">Remove</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <p>No volunteers found. Add one above or adjust your filters.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+<footer>
+    &copy; 2026 NayePankh Foundation &middot; Volunteer Management System &middot; Built with Python &amp; Flask
+</footer>
+
+</body>
+</html>
