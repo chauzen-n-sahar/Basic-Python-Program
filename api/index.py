@@ -13,7 +13,10 @@ import csv
 import io
 from datetime import datetime
 
-app = Flask(__name__, template_folder="../templates")
+# Use absolute path for templates (relative paths break in Vercel serverless)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "templates"))
 app.secret_key = os.environ.get("SECRET_KEY", "nayepankh_volunteer_system_2026")
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -21,7 +24,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_db():
     """Get a PostgreSQL database connection."""
-    conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+    conn = psycopg2.connect(DATABASE_URL)
     return conn
 
 
@@ -47,12 +50,20 @@ def init_db():
     conn.close()
 
 
-# Initialize DB on first import
-try:
-    if DATABASE_URL:
-        init_db()
-except Exception as e:
-    print(f"DB init warning (will retry on first request): {e}")
+# Track whether DB has been initialized
+_db_initialized = False
+
+
+@app.before_request
+def ensure_db():
+    """Initialize DB on first request (avoids cold-start crashes)."""
+    global _db_initialized
+    if not _db_initialized and DATABASE_URL:
+        try:
+            init_db()
+            _db_initialized = True
+        except Exception as e:
+            print(f"DB init error: {e}")
 
 
 # ──────────────────────────────────────────────
